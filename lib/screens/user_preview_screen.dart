@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'messages_screen.dart';
 
 class UserPreviewScreen extends StatefulWidget {
   final String targetUserId;
@@ -14,7 +15,7 @@ class UserPreviewScreen extends StatefulWidget {
 
 class _UserPreviewScreenState extends State<UserPreviewScreen> with TickerProviderStateMixin {
   late TabController _tabController;
-  final Color themeBg = const Color(0xFFFEFAEF);
+  final Color themeBg = const Color(0xFFFFFFFF);
   final Color coffeeBrown = const Color(0xFF53161D);
 
   @override
@@ -37,8 +38,7 @@ class _UserPreviewScreenState extends State<UserPreviewScreen> with TickerProvid
 
   // --- ACTIONS LOGIC ---
 
-  void _toggleLike(String postId, Map<String, dynamic> postData) async {
-    List likedBy = List.from(postData['likedBy'] ?? []);
+  void _toggleLike(String postId, List likedBy) async {
     bool isLiked = likedBy.contains(widget.currentUserId);
 
     if (isLiked) {
@@ -49,7 +49,14 @@ class _UserPreviewScreenState extends State<UserPreviewScreen> with TickerProvid
       await FirebaseFirestore.instance.collection('posts').doc(postId).update({
         'likedBy': FieldValue.arrayUnion([widget.currentUserId])
       });
-      _sendNotification('like', "liked your post", widget.targetUserId, postText: postData['text']);
+
+      // Fetch original text safely to attach to notification payload
+      var postDoc = await FirebaseFirestore.instance.collection('posts').doc(postId).get();
+      String origText = '';
+      if (postDoc.exists) {
+        origText = (postDoc.data() as Map<String, dynamic>)['text'] ?? '';
+      }
+      _sendNotification('like', "liked your post", widget.targetUserId, postText: origText);
     }
   }
 
@@ -114,6 +121,8 @@ class _UserPreviewScreenState extends State<UserPreviewScreen> with TickerProvid
                 await FirebaseFirestore.instance.collection('posts').add({
                   'text': post['text'],
                   'authorId': widget.currentUserId,
+                  'originalAuthorId': post['originalAuthorId'] ?? post['authorId'] ?? '',
+                  'username': post['username'],
                   'isRepost': true,
                   'createdAt': FieldValue.serverTimestamp(),
                   'likedBy': [],
@@ -207,13 +216,14 @@ class _UserPreviewScreenState extends State<UserPreviewScreen> with TickerProvid
             body: TabBarView(
               controller: _tabController,
               children: [
-                _buildFeed(FirebaseFirestore.instance.collection('posts')
+                _buildFeed(userData, query: FirebaseFirestore.instance.collection('posts')
                     .where('authorId', isEqualTo: widget.targetUserId)
                     .where('isRepost', isEqualTo: false)
                     .where('parentId', isNull: true)),
-                _buildFeed(FirebaseFirestore.instance.collection('posts')
-                    .where('likedBy', arrayContains: widget.targetUserId)),
-                _buildFeed(FirebaseFirestore.instance.collection('posts')
+                _buildFeed(userData, query: FirebaseFirestore.instance.collection('posts')
+                    .where('likedBy', arrayContains: widget.targetUserId)
+                    .where('parentId', isNull: true)),
+                _buildFeed(userData, query: FirebaseFirestore.instance.collection('posts')
                     .where('authorId', isEqualTo: widget.targetUserId)
                     .where('isRepost', isEqualTo: true)),
               ],
@@ -224,7 +234,7 @@ class _UserPreviewScreenState extends State<UserPreviewScreen> with TickerProvid
     );
   }
 
-  Widget _buildFeed(Query query) {
+  Widget _buildFeed(Map<String, dynamic> userData, {required Query query}) {
     return StreamBuilder<QuerySnapshot>(
       stream: query.snapshots(),
       builder: (context, snapshot) {
@@ -256,8 +266,8 @@ class _UserPreviewScreenState extends State<UserPreviewScreen> with TickerProvid
 
                 return Column(
                   children: [
-                    _postCard(rootData, rootDoc.id, isComment: false),
-                    ...children.map((c) => _postCard(c.data() as Map<String, dynamic>, c.id, isComment: true)),
+                    _postCard(rootData, rootDoc.id, userData, isComment: false),
+                    ...children.map((c) => _postCard(c.data() as Map<String, dynamic>, c.id, userData, isComment: true)),
                   ],
                 );
               },
@@ -268,91 +278,156 @@ class _UserPreviewScreenState extends State<UserPreviewScreen> with TickerProvid
     );
   }
 
-  Widget _postCard(Map<String, dynamic> post, String postId, {required bool isComment}) {
+  Widget _postCard(Map<String, dynamic> post, String postId, Map<String, dynamic> userData, {required bool isComment}) {
     List likedBy = post['likedBy'] ?? [];
+    DateTime dt = (post['createdAt'] as Timestamp? ?? Timestamp.now()).toDate();
     String authorId = post['authorId'] ?? '';
     bool isMyPost = authorId == widget.currentUserId;
 
-    return StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance.collection('posts')
-            .where('authorId', isEqualTo: widget.currentUserId)
-            .where('text', isEqualTo: post['text'])
-            .where('isRepost', isEqualTo: true)
-            .snapshots(),
-        builder: (context, repostSnap) {
-          bool iHaveReposted = repostSnap.hasData && repostSnap.data!.docs.isNotEmpty;
-
-          return Container(
-            margin: EdgeInsets.only(left: isComment ? 40 : 15, right: 15, top: 5, bottom: 5),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: isComment ? Colors.grey[50] : Colors.white,
-              borderRadius: BorderRadius.circular(15),
-              border: Border.all(color: Colors.grey.shade200),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return Padding(
+      padding: EdgeInsets.only(left: isComment ? 40 : 16, right: 16, top: 10, bottom: 10),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // --- LEFT COLUMN: DYNAMIC AVATAR & TIMELINE CONNECTING LINE ---
+            Column(
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    FutureBuilder<DocumentSnapshot>(
-                      future: FirebaseFirestore.instance.collection('users').doc(authorId).get(),
-                      builder: (context, userSnap) {
-                        String currentName = post['username'] ?? 'user';
-                        if (userSnap.hasData && userSnap.data!.exists) {
-                          currentName = (userSnap.data!.data() as Map<String, dynamic>)['username'] ?? currentName;
-                        }
-                        return Text("@$currentName",
-                            style: TextStyle(color: coffeeBrown, fontWeight: FontWeight.bold, fontSize: 13));
-                      },
-                    ),
-                    Text(DateFormat('MMM d, yyyy • h:mm a').format((post['createdAt'] as Timestamp? ?? Timestamp.now()).toDate()),
-                        style: const TextStyle(color: Colors.grey, fontSize: 10)),
-                  ],
+                FutureBuilder<DocumentSnapshot>(
+                  future: FirebaseFirestore.instance.collection('users').doc(authorId).get(),
+                  builder: (context, uSnap) {
+                    String pPic = '';
+                    if (uSnap.hasData && uSnap.data!.exists) {
+                      pPic = (uSnap.data!.data() as Map<String, dynamic>)['profilePic'] ?? '';
+                    }
+                    return CircleAvatar(
+                      radius: 18,
+                      backgroundColor: coffeeBrown.withOpacity(0.1),
+                      backgroundImage: pPic.isNotEmpty ? NetworkImage(pPic) : null,
+                      child: pPic.isEmpty ? Icon(Icons.person, color: coffeeBrown, size: 18) : null,
+                    );
+                  },
                 ),
-                const SizedBox(height: 8),
-                Text(post['text'] ?? ""),
-                const Divider(height: 20),
-                Row(
-                  children: [
-                    _actionIcon(
-                        likedBy.contains(widget.currentUserId) ? Icons.favorite : Icons.favorite_border,
-                        "${likedBy.length}",
-                        likedBy.contains(widget.currentUserId) ? Colors.red : coffeeBrown,
-                            () => _toggleLike(postId, post)
-                    ),
-                    const SizedBox(width: 20),
-
-                    _actionIcon(
-                        Icons.chat_bubble_outline,
-                        "Reply",
-                        coffeeBrown,
-                            () => _showCommentDialog(postId, post['text'] ?? "")
-                    ),
-
-                    const SizedBox(width: 20),
-
-                    if (!isComment)
-                      _actionIcon(
-                          Icons.repeat,
-                          iHaveReposted ? "Reposted" : "Repost",
-                          iHaveReposted ? Colors.green : Colors.blue,
-                              () => _toggleRepost(post)
-                      ),
-
-                    const Spacer(),
-                    if (isMyPost)
-                      IconButton(
-                          icon: const Icon(Icons.delete_outline, size: 16, color: Colors.grey),
-                          onPressed: () => _confirmDelete(postId)
-                      ),
-                  ],
-                )
+                Expanded(
+                  child: Container(
+                    width: 1.5,
+                    margin: const EdgeInsets.symmetric(vertical: 6),
+                    color: isComment ? Colors.transparent : Colors.grey.withOpacity(0.2),
+                  ),
+                ),
               ],
             ),
-          );
-        }
+            const SizedBox(width: 12),
+
+            // --- RIGHT COLUMN: POST HEADING, TEXT & ACTION HOOKS ---
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: FutureBuilder<DocumentSnapshot>(
+                          future: FirebaseFirestore.instance
+                              .collection('users')
+                              .doc((post['isRepost'] == true && post['originalAuthorId'] != null && post['originalAuthorId'].toString().isNotEmpty)
+                              ? post['originalAuthorId']
+                              : authorId)
+                              .get(),
+                          builder: (context, userSnap) {
+                            String liveUsername = post['username'] ?? 'user';
+                            if (userSnap.hasData && userSnap.data!.exists) {
+                              liveUsername = (userSnap.data!.data() as Map<String, dynamic>)['username'] ?? liveUsername;
+                            }
+                            return Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    "@$liveUsername",
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(color: coffeeBrown, fontWeight: FontWeight.bold, fontSize: 13),
+                                  ),
+                                ),
+                                if (post['isRepost'] == true) ...[
+                                  const SizedBox(width: 4),
+                                  Icon(Icons.repeat, size: 12, color: Colors.grey[500]),
+                                ],
+                              ],
+                            );
+                          },
+                        ),
+                      ),
+                      Text(
+                        DateFormat('MMM d, yyyy • h:mm a').format(dt),
+                        style: const TextStyle(color: Colors.grey, fontSize: 11),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+
+                  // Main post body element
+                  Text(
+                    post['text'] ?? '',
+                    style: const TextStyle(fontSize: 14, color: Colors.black87, height: 1.3),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Action Menu Grid Bar Row
+                  Row(
+                    children: [
+                      _actionIcon(
+                          likedBy.contains(widget.currentUserId) ? Icons.favorite : Icons.favorite_border,
+                          likedBy.isNotEmpty ? "${likedBy.length}" : "",
+                          likedBy.contains(widget.currentUserId) ? Colors.red : coffeeBrown,
+                              () => _toggleLike(postId, likedBy)
+                      ),
+                      const SizedBox(width: 16),
+                      _actionIcon(
+                          Icons.chat_bubble_outline,
+                          "",
+                          coffeeBrown,
+                              () => _showCommentDialog(postId, post['text'] ?? "")
+                      ),
+                      const SizedBox(width: 16),
+
+                      if (!isComment)
+                        StreamBuilder<QuerySnapshot>(
+                          stream: FirebaseFirestore.instance.collection('posts')
+                              .where('authorId', isEqualTo: widget.currentUserId)
+                              .where('text', isEqualTo: post['text'])
+                              .where('isRepost', isEqualTo: true)
+                              .snapshots(),
+                          builder: (context, repostSnap) {
+                            bool iHaveReposted = repostSnap.hasData && repostSnap.data!.docs.isNotEmpty;
+                            return _actionIcon(
+                                Icons.repeat,
+                                "",
+                                iHaveReposted ? Colors.green : coffeeBrown,
+                                    () => _toggleRepost(post)
+                            );
+                          },
+                        ),
+
+                      const Spacer(),
+                      if (isMyPost)
+                        InkWell(
+                          onTap: () => _confirmDelete(postId),
+                          borderRadius: BorderRadius.circular(12),
+                          child: const Padding(
+                            padding: EdgeInsets.all(4.0),
+                            child: Icon(Icons.more_horiz, size: 18, color: Colors.grey),
+                          ),
+                        ),
+                    ],
+                  )
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -576,7 +651,17 @@ class _UserPreviewScreenState extends State<UserPreviewScreen> with TickerProvid
                       side: BorderSide(color: coffeeBrown),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
-                    onPressed: () { /* Message logic */ },
+                    onPressed: () {
+                      // --- DIRECT NAVIGATION ONLY ---
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => MessagesScreen(
+                            userId: widget.targetUserId,
+                          ),
+                        ),
+                      );
+                    },
                     child: Text("Message", style: TextStyle(color: coffeeBrown)),
                   ),
                 ),

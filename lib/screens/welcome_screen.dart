@@ -13,6 +13,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   int _currentPage = 0;
   bool isLogin = true;
   bool isLoading = false;
+  bool _obscurePassword = true; // 🌟 TRACKS PASSWORD VISIBILITY STATE
 
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
@@ -84,13 +85,13 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFEFAEF),
+      backgroundColor: const Color(0xFFFFFFFF),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [const Color(0xFFFEFAEF), Colors.white.withOpacity(0.5)],
+            colors: [const Color(0xFFFFFFFF), Colors.white.withOpacity(0.5)],
           ),
         ),
         child: Stack(
@@ -124,7 +125,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
             ),
           ),
           const Text(
-            "where conversations brew",
+            "where conversations click",
             style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
           ),
           const SizedBox(height: 60),
@@ -132,7 +133,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
             onPressed: () => setState(() => _currentPage = 1),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF53161D),
-              foregroundColor: const Color(0xFFFEFAEF),
+              foregroundColor: const Color(0xFFFFFFFF),
               padding: const EdgeInsets.symmetric(horizontal: 60, vertical: 18),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
               elevation: 8,
@@ -171,7 +172,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               onPressed: _handleAuth,
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF53161D),
-                foregroundColor: const Color(0xFFFEFAEF),
+                foregroundColor: const Color(0xFFFFFFFF),
                 minimumSize: const Size(double.infinity, 55),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                 elevation: 4,
@@ -215,10 +216,25 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         ),
         child: TextField(
           controller: controller,
-          obscureText: isPass,
+          // 🌟 DYNAMIC VISIBILITY SWITCHING FOR PASSWORD TYPE FIELDS
+          obscureText: isPass ? _obscurePassword : false,
           style: const TextStyle(color: Color(0xFF53161D)),
           decoration: InputDecoration(
             prefixIcon: Icon(icon, color: const Color(0xFF53161D)),
+            // 🌟 INJECT TOGGLE ICON PATTERN
+            suffixIcon: isPass
+                ? IconButton(
+              icon: Icon(
+                _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                color: const Color(0xFF53161D).withOpacity(0.6),
+              ),
+              onPressed: () {
+                setState(() {
+                  _obscurePassword = !_obscurePassword;
+                });
+              },
+            )
+                : null,
             hintText: hint,
             hintStyle: const TextStyle(color: Colors.grey),
             filled: true,

@@ -12,7 +12,7 @@ class MessagesScreen extends StatefulWidget {
 }
 
 class _MessagesScreenState extends State<MessagesScreen> {
-  final Color themeBg = const Color(0xFFFEFAEF);
+  final Color themeBg = const Color(0xFFFFFFFF);
   final Color coffeeBrown = const Color(0xFF53161D);
 
   // Helper for relative timestamps (e.g., 2m, 1h)

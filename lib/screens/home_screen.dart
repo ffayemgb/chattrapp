@@ -14,7 +14,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _postController = TextEditingController();
   bool _isPosting = false;
 
-  final Color themeBg = const Color(0xFFFEFAEF);
+  final Color themeBg = const Color(0xFFFFFFFF);
   final Color coffeeBrown = const Color(0xFF53161D);
 
   @override
@@ -72,7 +72,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _toggleRepost(Map<String, dynamic> post) async {
     try {
-      // Look for an existing repost made by YOU for this specific post text
       var existing = await FirebaseFirestore.instance
           .collection('posts')
           .where('authorId', isEqualTo: widget.userId)
@@ -81,13 +80,11 @@ class _HomeScreenState extends State<HomeScreen> {
           .get();
 
       if (existing.docs.isNotEmpty) {
-        // 🌟 IF ALREADY REPOSTED: Update the timestamp quietly to move it above the feed (No popup)
         String existingDocId = existing.docs.first.id;
         await FirebaseFirestore.instance.collection('posts').doc(existingDocId).update({
           'createdAt': FieldValue.serverTimestamp(),
         });
       } else {
-        // 🌟 IF NOT REPOSTED YET: Add it clean straight away (No popup)
         await FirebaseFirestore.instance.collection('posts').add({
           'text': post['text'],
           'authorId': widget.userId,
@@ -173,8 +170,10 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Row(
         children: [
           Icon(icon, size: 16, color: color),
-          const SizedBox(width: 4),
-          Text(label, style: TextStyle(fontSize: 11, color: color))
+          if (label.isNotEmpty) ...[
+            const SizedBox(width: 4),
+            Text(label, style: TextStyle(fontSize: 11, color: color)),
+          ],
         ],
       ),
     );
@@ -209,25 +208,35 @@ class _HomeScreenState extends State<HomeScreen> {
           appBar: AppBar(
             backgroundColor: themeBg,
             elevation: 0,
-            title: Text(
-              "Home Feed",
-              style: TextStyle(color: coffeeBrown, fontWeight: FontWeight.w900, fontSize: 26),
+            centerTitle: false,
+            title: Padding(
+              padding: const EdgeInsets.only(left: 4, top: 10),
+              child: Text(
+                "Home Feed",
+                style: TextStyle(
+                    color: coffeeBrown,
+                    fontWeight: FontWeight.w900, // 👈 FIXED: Changed from .black to .w900
+                    fontSize: 24,
+                    letterSpacing: -0.5
+                ),
+              ),
             ),
           ),
           body: Column(
             children: [
-              // 🌟 ENHANCED & BEAUTIFIED "WHAT'S ON YOUR MIND" CARD COMPONENT
+              // --- THEMED CELESTIAL "WHAT'S ON YOUR MIND" CARD COMPONENT ---
               Container(
-                margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
+                margin: const EdgeInsets.only(left: 16, right: 16, top: 10, bottom: 14),
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: coffeeBrown.withOpacity(0.08), width: 1),
                   boxShadow: [
                     BoxShadow(
-                      color: coffeeBrown.withOpacity(0.06),
-                      blurRadius: 20,
-                      offset: const Offset(0, 8),
+                      color: coffeeBrown.withOpacity(0.04),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
                     ),
                   ],
                 ),
@@ -237,11 +246,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         CircleAvatar(
-                          radius: 22,
+                          radius: 18,
                           backgroundColor: coffeeBrown.withOpacity(0.1),
                           backgroundImage: myProfilePic.isNotEmpty ? NetworkImage(myProfilePic) : null,
                           child: myProfilePic.isEmpty
-                              ? Icon(Icons.person, color: coffeeBrown, size: 22)
+                              ? Icon(Icons.person, color: coffeeBrown, size: 18)
                               : null,
                         ),
                         const SizedBox(width: 12),
@@ -251,32 +260,29 @@ class _HomeScreenState extends State<HomeScreen> {
                             maxLines: null,
                             minLines: 1,
                             keyboardType: TextInputType.multiline,
-                            style: const TextStyle(fontSize: 15, color: Colors.black87, height: 1.4),
+                            style: const TextStyle(fontSize: 14, color: Colors.black87, height: 1.4),
                             decoration: InputDecoration(
                               hintText: "What's on your mind, @$myUsername?",
-                              hintStyle: TextStyle(color: Colors.grey[400], fontSize: 15),
+                              hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
                               border: InputBorder.none,
                               isDense: true,
-                              contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                              contentPadding: const EdgeInsets.symmetric(vertical: 6),
                             ),
                           ),
                         ),
                       ],
                     ),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 8.0),
-                      child: Divider(color: Color(0xFFF5EFE2), thickness: 1),
-                    ),
+                    const SizedBox(height: 12),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Row(
                           children: [
-                            Icon(Icons.notes, size: 18, color: coffeeBrown.withOpacity(0.4)),
+                            Icon(Icons.notes, size: 14, color: coffeeBrown.withOpacity(0.4)),
                             const SizedBox(width: 6),
                             Text(
                               "Share a thought...",
-                              style: TextStyle(color: Colors.grey[400], fontSize: 12, fontStyle: FontStyle.italic),
+                              style: TextStyle(color: Colors.grey[400], fontSize: 11, fontStyle: FontStyle.italic),
                             ),
                           ],
                         ),
@@ -284,23 +290,22 @@ class _HomeScreenState extends State<HomeScreen> {
                           style: ElevatedButton.styleFrom(
                             backgroundColor: coffeeBrown,
                             foregroundColor: themeBg,
-                            elevation: 2,
-                            shadowColor: coffeeBrown.withOpacity(0.3),
+                            elevation: 0,
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(100),
+                              borderRadius: BorderRadius.circular(20),
                             ),
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                           ),
                           onPressed: _isPosting ? null : () => _createNewPost(myUsername),
                           child: _isPosting
                               ? const SizedBox(
-                            height: 16,
-                            width: 16,
+                            height: 14,
+                            width: 14,
                             child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                           )
                               : const Text(
                             "Post",
-                            style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.5, fontSize: 14),
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                           ),
                         ),
                       ],
@@ -309,7 +314,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
 
-              // DYNAMIC TIMELINE STREAM
+              // DYNAMIC TIMELINE FEED STREAM
               Expanded(
                 child: StreamBuilder<QuerySnapshot>(
                   stream: FirebaseFirestore.instance.collection('posts').snapshots(),
@@ -323,14 +328,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
                     List<QueryDocumentSnapshot> allDocs = feedSnapshot.data!.docs;
 
-                    // 1. Gather all text content that YOU have personally reposted
                     Set<String> myRepostedTexts = allDocs.where((doc) {
                       var postData = doc.data() as Map<String, dynamic>;
                       return postData['authorId'] == widget.userId &&
                           postData['isRepost'] == true;
                     }).map((doc) => (doc.data() as Map<String, dynamic>)['text']?.toString() ?? '').toSet();
 
-                    // 2. Filter root timeline posts while skipping original duplicate entries
                     var timelinePosts = allDocs.where((doc) {
                       var postData = doc.data() as Map<String, dynamic>;
                       String authorId = postData['authorId'] ?? '';
@@ -338,11 +341,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       bool isRepost = postData['isRepost'] ?? false;
                       bool isRootPost = !postData.containsKey('parentId') || postData['parentId'] == null;
 
-                      // Base check: Must be a top-level post from you or followed friends
                       if (!isRootPost || !allowedUserIds.contains(authorId)) return false;
 
-                      // 🌟 EXCLUSION FILTER: If this is your OWN original post, but you have
-                      // already reposted it, drop the original post document from this list
                       if (authorId == widget.userId && !isRepost && myRepostedTexts.contains(postText)) {
                         return false;
                       }
@@ -365,7 +365,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: Text(
                           "No posts to display.\nShare something or follow friends!",
                           textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.grey[500], height: 1.5),
+                          style: TextStyle(color: Colors.grey[500], height: 1.5, fontSize: 13),
                         ),
                       );
                     }
@@ -384,8 +384,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
                         return Column(
                           children: [
-                            _buildPostCard(rootData, rootId, isComment: false),
-                            ...children.map((c) => _buildPostCard(c.data() as Map<String, dynamic>, c.id, isComment: true)),
+                            _buildPostCard(rootData, rootId, userData, isComment: false),
+                            ...children.map((c) => _buildPostCard(c.data() as Map<String, dynamic>, c.id, userData, isComment: true)),
                           ],
                         );
                       },
@@ -400,13 +400,10 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // --- REPLICATED POSTCARD COMPONENT FROM PROFILE & PREVIEW ---
-  Widget _buildPostCard(Map<String, dynamic> post, String postId, {required bool isComment}) {
+  Widget _buildPostCard(Map<String, dynamic> post, String postId, Map<String, dynamic> userData, {required bool isComment}) {
     List likedBy = post['likedBy'] ?? [];
     DateTime dt = (post['createdAt'] as Timestamp? ?? Timestamp.now()).toDate();
     String authorId = post['authorId'] ?? '';
-
-    // 🌟 FIX 4: Only show delete button if YOU are the absolute author who created/reposted this entry document
     bool isMyPost = authorId == widget.userId;
 
     return StreamBuilder<QuerySnapshot>(
@@ -419,83 +416,137 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (context, repostSnap) {
         bool iHaveReposted = repostSnap.hasData && repostSnap.data!.docs.isNotEmpty;
 
-        return Container(
-          margin: EdgeInsets.only(left: isComment ? 40 : 15, right: 15, top: 5, bottom: 5),
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: isComment ? Colors.grey[50] : Colors.white,
-            borderRadius: BorderRadius.circular(15),
-            border: Border.all(color: Colors.grey.shade200),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  FutureBuilder<DocumentSnapshot>(
-                    future: FirebaseFirestore.instance
-                        .collection('users')
-                        .doc((post['isRepost'] == true && post['originalAuthorId'] != null && post['originalAuthorId'].toString().isNotEmpty)
-                        ? post['originalAuthorId']
-                        : authorId)
-                        .get(),
-                    builder: (context, userSnap) {
-                      String currentName = post['username'] ?? 'user';
-                      if (userSnap.hasData && userSnap.data!.exists) {
-                        currentName = (userSnap.data!.data() as Map<String, dynamic>)['username'] ?? currentName;
-                      }
-                      return Text(
-                        "@$currentName",
-                        style: TextStyle(color: coffeeBrown, fontWeight: FontWeight.bold, fontSize: 13),
-                      );
-                    },
-                  ),
-                  Text(
-                    DateFormat('MMM d, yyyy • h:mm a').format(dt),
-                    style: const TextStyle(color: Colors.grey, fontSize: 10),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                post['text'] ?? '',
-                style: const TextStyle(fontSize: 14, color: Colors.black87),
-              ),
-              const Divider(height: 20),
-              Row(
-                children: [
-                  _actionIcon(
-                    likedBy.contains(widget.userId) ? Icons.favorite : Icons.favorite_border,
-                    "${likedBy.length}",
-                    likedBy.contains(widget.userId) ? Colors.red : coffeeBrown,
-                        () => _toggleLike(postId, likedBy),
-                  ),
-                  const SizedBox(width: 20),
-                  _actionIcon(
-                    Icons.chat_bubble_outline,
-                    "Reply",
-                    coffeeBrown,
-                        () => _showCommentDialog(postId, post['text'] ?? ""),
-                  ),
-                  const SizedBox(width: 20),
-                  if (!isComment)
-                    _actionIcon(
-                      Icons.repeat,
-                      iHaveReposted ? "Reposted" : "Repost",
-                      iHaveReposted ? Colors.green : Colors.blue,
-                          () => _toggleRepost(post),
+        return Padding(
+          padding: EdgeInsets.only(left: isComment ? 40 : 16, right: 16, top: 10, bottom: 10),
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // --- LEFT SIDE: AVATAR AND THREAD CONNECTOR LINE ---
+                Column(
+                  children: [
+                    FutureBuilder<DocumentSnapshot>(
+                      future: FirebaseFirestore.instance.collection('users').doc(authorId).get(),
+                      builder: (context, uSnap) {
+                        String pPic = '';
+                        if (uSnap.hasData && uSnap.data!.exists) {
+                          pPic = (uSnap.data!.data() as Map<String, dynamic>)['profilePic'] ?? '';
+                        }
+                        return CircleAvatar(
+                          radius: 18,
+                          backgroundColor: coffeeBrown.withOpacity(0.1),
+                          backgroundImage: pPic.isNotEmpty ? NetworkImage(pPic) : null,
+                          child: pPic.isEmpty ? Icon(Icons.person, color: coffeeBrown, size: 18) : null,
+                        );
+                      },
                     ),
-                  const Spacer(),
-                  // 🌟 FIX 3 & 4: Only draw widget tree icon if true, eliminating white-screen crashes
-                  if (isMyPost)
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline, size: 16, color: Colors.grey),
-                      onPressed: () => _confirmDelete(postId),
+                    Expanded(
+                      child: Container(
+                        width: 1.5,
+                        margin: const EdgeInsets.symmetric(vertical: 6),
+                        color: isComment ? Colors.transparent : Colors.grey.withOpacity(0.2),
+                      ),
                     ),
-                ],
-              )
-            ],
+                  ],
+                ),
+                const SizedBox(width: 12),
+
+                // --- RIGHT SIDE: CONTENT FRAME ---
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: FutureBuilder<DocumentSnapshot>(
+                              future: FirebaseFirestore.instance
+                                  .collection('users')
+                                  .doc((post['isRepost'] == true && post['originalAuthorId'] != null && post['originalAuthorId'].toString().isNotEmpty)
+                                  ? post['originalAuthorId']
+                                  : authorId)
+                                  .get(),
+                              builder: (context, userSnap) {
+                                String currentName = post['username'] ?? 'user';
+                                if (userSnap.hasData && userSnap.data!.exists) {
+                                  currentName = (userSnap.data!.data() as Map<String, dynamic>)['username'] ?? currentName;
+                                }
+                                return Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Flexible(
+                                      child: Text(
+                                        "@$currentName",
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(color: coffeeBrown, fontWeight: FontWeight.bold, fontSize: 13),
+                                      ),
+                                    ),
+                                    if (post['isRepost'] == true) ...[
+                                      const SizedBox(width: 4),
+                                      Icon(Icons.repeat, size: 12, color: Colors.grey[500]),
+                                    ],
+                                  ],
+                                );
+                              },
+                            ),
+                          ),
+                          Text(
+                            DateFormat('MMM d, yyyy • h:mm a').format(dt),
+                            style: const TextStyle(color: Colors.grey, fontSize: 11),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+
+                      // Post Content Text String
+                      Text(
+                        post['text'] ?? '',
+                        style: const TextStyle(fontSize: 14, color: Colors.black87, height: 1.3),
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Action Row Elements
+                      Row(
+                        children: [
+                          _actionIcon(
+                            likedBy.contains(widget.userId) ? Icons.favorite : Icons.favorite_border,
+                            likedBy.isNotEmpty ? "${likedBy.length}" : "",
+                            likedBy.contains(widget.userId) ? Colors.red : coffeeBrown,
+                                () => _toggleLike(postId, likedBy),
+                          ),
+                          const SizedBox(width: 16),
+                          _actionIcon(
+                            Icons.chat_bubble_outline,
+                            "",
+                            coffeeBrown,
+                                () => _showCommentDialog(postId, post['text'] ?? ""),
+                          ),
+                          const SizedBox(width: 16),
+                          if (!isComment)
+                            _actionIcon(
+                              Icons.repeat,
+                              "",
+                              iHaveReposted ? Colors.green : coffeeBrown,
+                                  () => _toggleRepost(post),
+                            ),
+                          const Spacer(),
+                          if (isMyPost)
+                            InkWell(
+                              onTap: () => _confirmDelete(postId),
+                              borderRadius: BorderRadius.circular(12),
+                              child: const Padding(
+                                padding: EdgeInsets.all(4.0),
+                                child: Icon(Icons.more_horiz, size: 18, color: Colors.grey),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },

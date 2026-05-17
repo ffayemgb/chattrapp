@@ -12,7 +12,7 @@ class SearchScreen extends StatefulWidget {
 
 class _SearchScreenState extends State<SearchScreen> {
   String _searchQuery = "";
-  final Color themeBg = const Color(0xFFFEFAEF);
+  final Color themeBg = const Color(0xFFFFFFFF);
   final Color coffeeBrown = const Color(0xFF53161D);
 
   @override

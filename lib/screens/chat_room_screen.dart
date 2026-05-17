@@ -20,7 +20,7 @@ class ChatRoomScreen extends StatefulWidget {
 class _ChatRoomScreenState extends State<ChatRoomScreen> {
   final TextEditingController _messageController = TextEditingController();
   final Color coffeeBrown = const Color(0xFF53161D);
-  final Color themeBg = const Color(0xFFFEFAEF);
+  final Color themeBg = const Color(0xFFFFFFFF);
 
   void _handleReaction(String messageId, String emoji) async {
     DocumentReference msgRef = FirebaseFirestore.instance

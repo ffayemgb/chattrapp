@@ -19,7 +19,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
   bool _isUploading = false;
   Uint8List? _tempProfileBytes;
 
-  final Color themeBg = const Color(0xFFFEFAEF);
+  final Color themeBg = const Color(0xFFFFFFFF);
   final Color coffeeBrown = const Color(0xFF53161D);
 
   @override
@@ -517,86 +517,151 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
   Widget _postCard(Map<String, dynamic> post, String postId, Map<String, dynamic> userData, {required bool isComment}) {
     List likedBy = post['likedBy'] ?? [];
     DateTime dt = (post['createdAt'] as Timestamp? ?? Timestamp.now()).toDate();
-    String authorId = post['authorId'] ?? ''; // We use this ID to fetch the current username
+    String authorId = post['authorId'] ?? '';
 
-    return Container(
-      margin: EdgeInsets.only(left: isComment ? 40 : 15, right: 15, top: 5, bottom: 5),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: isComment ? Colors.grey[50] : Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              // --- UPDATED REPOST USERNAME DISPLAY LOGIC ---
-              FutureBuilder<DocumentSnapshot>(
-                future: FirebaseFirestore.instance
-                    .collection('users')
-                    .doc((post['isRepost'] == true && post['originalAuthorId'] != null && post['originalAuthorId'].toString().isNotEmpty)
-                    ? post['originalAuthorId']
-                    : authorId)
-                    .get(),
-                builder: (context, userSnap) {
-                  String liveUsername = post['username'] ?? 'user';
-                  if (userSnap.hasData && userSnap.data!.exists) {
-                    liveUsername = (userSnap.data!.data() as Map<String, dynamic>)['username'] ?? liveUsername;
-                  }
-                  return Text(
-                    "@$liveUsername",
-                    style: TextStyle(color: coffeeBrown, fontWeight: FontWeight.bold, fontSize: 13),
-                  );
-                },
-              ),
-              Text(DateFormat('MMM d, yyyy • h:mm a').format(dt), style: const TextStyle(color: Colors.grey, fontSize: 10)),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(post['text'] ?? ''),
-          const Divider(height: 20),
-          Row(
-            children: [
-              _actionIcon(
-                  likedBy.contains(widget.userId) ? Icons.favorite : Icons.favorite_border,
-                  "${likedBy.length}",
-                  likedBy.contains(widget.userId) ? Colors.red : coffeeBrown,
-                      () => _toggleLike(postId, likedBy)
-              ),
-              const SizedBox(width: 20),
-              _actionIcon(Icons.chat_bubble_outline, "Reply", coffeeBrown,
-                      () => _showNewPostDialog(userData, parentPostId: postId)),
-              const SizedBox(width: 20),
-
-              if (!isComment)
-                StreamBuilder<QuerySnapshot>(
-                  stream: FirebaseFirestore.instance.collection('posts')
-                      .where('authorId', isEqualTo: widget.userId)
-                      .where('text', isEqualTo: post['text'])
-                      .where('isRepost', isEqualTo: true)
-                      .snapshots(),
-                  builder: (context, repostSnap) {
-                    bool iHaveReposted = repostSnap.hasData && repostSnap.data!.docs.isNotEmpty;
-                    return _actionIcon(
-                        Icons.repeat,
-                        iHaveReposted ? "Reposted" : "Repost",
-                        iHaveReposted ? Colors.green : Colors.blue,
-                            () => _toggleRepost(post)
+    return Padding(
+      padding: EdgeInsets.only(left: isComment ? 40 : 16, right: 16, top: 10, bottom: 10),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // --- LEFT COLUMN: DYNAMIC AVATAR & TIMELINE CONNECTING LINE ---
+            Column(
+              children: [
+                FutureBuilder<DocumentSnapshot>(
+                  future: FirebaseFirestore.instance.collection('users').doc(authorId).get(),
+                  builder: (context, uSnap) {
+                    String pPic = '';
+                    if (uSnap.hasData && uSnap.data!.exists) {
+                      pPic = (uSnap.data!.data() as Map<String, dynamic>)['profilePic'] ?? '';
+                    }
+                    return CircleAvatar(
+                      radius: 18,
+                      backgroundColor: coffeeBrown.withOpacity(0.1),
+                      backgroundImage: pPic.isNotEmpty ? NetworkImage(pPic) : null,
+                      child: pPic.isEmpty ? Icon(Icons.person, color: coffeeBrown, size: 18) : null,
                     );
                   },
                 ),
+                Expanded(
+                  child: Container(
+                    width: 1.5,
+                    margin: const EdgeInsets.symmetric(vertical: 6),
+                    color: isComment ? Colors.transparent : Colors.grey.withOpacity(0.2),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(width: 12),
 
-              const Spacer(),
-              IconButton(
-                  icon: const Icon(Icons.delete_outline, size: 18, color: Colors.grey),
-                  onPressed: () => _confirmDelete(postId)
+            // --- RIGHT COLUMN: POST HEADING, TEXT & ACTION HOOKS ---
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header Area: Handle/Username, TimeStamp metadata
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: FutureBuilder<DocumentSnapshot>(
+                          future: FirebaseFirestore.instance
+                              .collection('users')
+                              .doc((post['isRepost'] == true && post['originalAuthorId'] != null && post['originalAuthorId'].toString().isNotEmpty)
+                              ? post['originalAuthorId']
+                              : authorId)
+                              .get(),
+                          builder: (context, userSnap) {
+                            String liveUsername = post['username'] ?? 'user';
+                            if (userSnap.hasData && userSnap.data!.exists) {
+                              liveUsername = (userSnap.data!.data() as Map<String, dynamic>)['username'] ?? liveUsername;
+                            }
+                            return Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    "@$liveUsername",
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(color: coffeeBrown, fontWeight: FontWeight.bold, fontSize: 13),
+                                  ),
+                                ),
+                                if (post['isRepost'] == true) ...[
+                                  const SizedBox(width: 4),
+                                  Icon(Icons.repeat, size: 12, color: Colors.grey[500]),
+                                ],
+                              ],
+                            );
+                          },
+                        ),
+                      ),
+                      Text(
+                        DateFormat('MMM d, yyyy • h:mm a').format(dt),
+                        style: const TextStyle(color: Colors.grey, fontSize: 11),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+
+                  // Main post body element
+                  Text(
+                    post['text'] ?? '',
+                    style: const TextStyle(fontSize: 14, color: Colors.black87, height: 1.3),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Action Menu Grid Bar Row
+                  Row(
+                    children: [
+                      _actionIcon(
+                          likedBy.contains(widget.userId) ? Icons.favorite : Icons.favorite_border,
+                          likedBy.isNotEmpty ? "${likedBy.length}" : "",
+                          likedBy.contains(widget.userId) ? Colors.red : coffeeBrown,
+                              () => _toggleLike(postId, likedBy)
+                      ),
+                      const SizedBox(width: 16),
+                      _actionIcon(
+                          Icons.chat_bubble_outline,
+                          "",
+                          coffeeBrown,
+                              () => _showNewPostDialog(userData, parentPostId: postId)
+                      ),
+                      const SizedBox(width: 16),
+
+                      if (!isComment)
+                        StreamBuilder<QuerySnapshot>(
+                          stream: FirebaseFirestore.instance.collection('posts')
+                              .where('authorId', isEqualTo: widget.userId)
+                              .where('text', isEqualTo: post['text'])
+                              .where('isRepost', isEqualTo: true)
+                              .snapshots(),
+                          builder: (context, repostSnap) {
+                            bool iHaveReposted = repostSnap.hasData && repostSnap.data!.docs.isNotEmpty;
+                            return _actionIcon(
+                                Icons.repeat,
+                                "",
+                                iHaveReposted ? Colors.green : coffeeBrown,
+                                    () => _toggleRepost(post)
+                            );
+                          },
+                        ),
+
+                      const Spacer(),
+                      InkWell(
+                        onTap: () => _confirmDelete(postId),
+                        borderRadius: BorderRadius.circular(12),
+                        child: const Padding(
+                          padding: EdgeInsets.all(4.0),
+                          child: Icon(Icons.more_horiz, size: 18, color: Colors.grey),
+                        ),
+                      ),
+                    ],
+                  )
+                ],
               ),
-            ],
-          )
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }
