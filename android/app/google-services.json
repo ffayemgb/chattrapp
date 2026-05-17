@@ -1,0 +1,67 @@
+{
+  "project_info": {
+    "project_number": "679551213464",
+    "project_id": "projectx-18f25",
+    "storage_bucket": "projectx-18f25.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:679551213464:android:13353e312d97f5496855ed",
+        "android_client_info": {
+          "package_name": "com.example.chattr"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCm3XenBGphXDYwK0lr_X0Yc1ZRTMr4U1A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:679551213464:android:19e0cf64269216096855ed",
+        "android_client_info": {
+          "package_name": "com.example.testing"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCm3XenBGphXDYwK0lr_X0Yc1ZRTMr4U1A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:679551213464:android:2562efdb5b648e9a6855ed",
+        "android_client_info": {
+          "package_name": "com.example.xproject"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCm3XenBGphXDYwK0lr_X0Yc1ZRTMr4U1A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
